@@ -4,15 +4,75 @@
     "quieter": "A",
     "confidence": 0.79,
     "agreement": 1.0,
-    "valid_samples": 5,
-    "reason": "The street in front of a college campus is typically quieter than a metro station entrance during the day due to lower human activity and traffic."
+    "valid_samples": 7,
+    "reason": "College campus streets typically have lower noise levels than metro station entrances due to less human activity and mechanical noise.",
+    "raw": [
+      [
+        "A",
+        0.8
+      ],
+      [
+        "A",
+        0.85
+      ],
+      [
+        "A",
+        0.7
+      ],
+      [
+        "A",
+        0.85
+      ],
+      [
+        "A",
+        0.7
+      ],
+      [
+        "A",
+        0.85
+      ],
+      [
+        "A",
+        0.8
+      ]
+    ]
   },
   {
     "model": "llama3.2:3b",
-    "quieter": "A",
-    "confidence": 0.78,
-    "agreement": 0.8,
-    "valid_samples": 5,
-    "reason": "The street is likely to be noisier than the metro station entrance due to foot traffic and background noise."
+    "quieter": "B",
+    "confidence": 0.62,
+    "agreement": 0.71,
+    "valid_samples": 7,
+    "reason": "The metro station entrance is typically quieter than the street in front of a college campus due to the presence of buildings and traffic.",
+    "raw": [
+      [
+        "A",
+        0.7
+      ],
+      [
+        "B",
+        0.7
+      ],
+      [
+        "B",
+        0.8
+      ],
+      [
+        "A",
+        0.7
+      ],
+      [
+        "B",
+        0.7
+      ],
+      [
+        "B",
+        0.7
+      ],
+      [
+        "B",
+        0.85
+      ]
+    ]
   }
 ]

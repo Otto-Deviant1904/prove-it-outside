@@ -1,42 +1,29 @@
-# Week 1 submit checklist (fast path, about 45 minutes)
+# Week 1 submit checklist
 
-Deadline: October 11, 11:59 PM PDT. Only your first submitted entry is judged, so post once, when complete.
+Deadline: Sunday October 11, 11:59 PM PDT (Monday October 12, about 5:59 PM AEDT). Only your first submitted entry is judged, so post once, when complete.
 
-## 1. Pick two places (2 min)
-Two real places you can walk between. Write 2–3 plain sentences for each (street type, traffic, shops, trees). Same level of detail for both.
+Already done: repo is public, models pulled, predictions made and committed (`predictions.json`, command in `predictions_command.txt`), demo voiceover generated (`demo_voiceover.mp3`).
 
-## 2. Get the model predictions (3 min)
-Models `qwen3:4b` and `llama3.2:3b` are pulled locally. Start the server if it is not running:
+## 1. Open the tool on your phone (2 min)
+Open the https link on your phone (GitHub Pages): https://otto-deviant1904.github.io/prove-it-outside/
+The microphone only works on a secure page, so do not use a local network address. If the page says the microphone API is unavailable, you opened an insecure link.
 
-```bash
-ollama serve
-```
+Paste the contents of `predictions.json` into the Predictions box and tap **Lock predictions** BEFORE you leave. (Copy the file to your phone, or open it in the repo on GitHub and copy the text.)
 
-Then in another terminal:
+## 2. Measure (about 10 min at each place)
+Keep the screen on and the page visible for the whole 30 seconds. If the screen sleeps, the run is discarded.
+- At the street: two runs. Same posture each time: stand still, phone at chest height, mic facing the same way.
+- At the metro station: two runs.
+- Fill the Conditions box before each run (time, wind, weather, traffic). Do the pair of runs at one place back to back.
+- Tap **Score predictions**, then **Export JSON**.
 
-```bash
-cd /home/ottodev/prove-it-outside
-python3 run_models.py --models qwen3:4b llama3.2:3b \
-  --desc-a "DESCRIPTION OF A" --desc-b "DESCRIPTION OF B" \
-  --when "today, time, weather" --samples 5
-```
+If the Score says INCONCLUSIVE, that is a valid result. Report it as it is.
 
-Paste the JSON output into step 1 of `index.html`, then click Lock predictions BEFORE you go out.
+## 3. Record the demo (5 min)
+Screen-record the page: prompt, locked predictions, the four measurements, the score. Lay `demo_voiceover.mp3` over it, or record your own. Add one photo of you at a place if you like.
 
-## 3. Measure (15 min)
-Open `index.html` in Chrome. Stand at A for 30 s, then B for 30 s, then A and B again. Same phone, same posture. Fill in the conditions box. Click Score, then Export JSON.
+## 4. Send the results to Claude (or fill the post yourself)
+Send the exported JSON. The post needs: the measured levels, the verdict, the Brier scores, the demo link.
 
-## 4. Record the demo (5 min)
-Screen-record the page: prompt, predictions locked, the four measurements, the score. Add one photo of you at a place.
-
-## 5. Repo (5 min)
-```bash
-cd /home/ottodev/prove-it-outside
-git init && git add -A && git commit -m "Prove It Outside"
-```
-Create a GitHub repo and push. Add the exported run JSON.
-
-## 6. Post (10 min)
-Fill the brackets in `DEV_POST.md`: model names and how you ran them, results, demo link, repo link. Publish on DEV with tags `#devchallenge` and `#hf26challenge`.
-
-If the measurement comes out inconclusive, say so in "What I Found". That is a valid result and the tool is designed to report it.
+## 5. Post (10 min)
+Fill the bracketed parts of `DEV_POST.md`. Publish on DEV with tags `#devchallenge` and `#hf26challenge`, the demo, and the repo link.

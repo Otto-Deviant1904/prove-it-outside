@@ -7,8 +7,10 @@ Usage:
       --when "Sunday 4 PM, dry" --samples 5
 
 Output is a JSON array to paste into index.html. Per model: the majority-vote
-pick, the mean stated confidence among the samples that agree with the vote,
-and the agreement rate across samples.
+pick, a confidence equal to the mean implied probability that the pick is correct
+over all samples (a dissenting sample with confidence c counts as 1 - c, result
+clamped to 0.5-1), the agreement rate, and the raw samples. An even split is
+reported as an error instead of picking a side.
 """
 import argparse, json, statistics, sys, urllib.error, urllib.request
 
@@ -75,15 +77,23 @@ def main():
             out.append({"model": model, "error": "no valid answers"})
             continue
         votes = [g[0] for g in good]
+        if votes.count("A") == votes.count("B"):
+            out.append({"model": model, "error": "tie between A and B; rerun with an odd number of samples",
+                        "raw": [[g[0], g[1]] for g in good]})
+            continue
         pick = max("AB", key=votes.count)
         agree = [g for g in good if g[0] == pick]
+        # Implied probability that the pick is correct, over ALL samples: a dissenting
+        # sample that says B with confidence c implies P(A) = 1 - c.
+        implied = [g[1] if g[0] == pick else 1 - g[1] for g in good]
         out.append({
             "model": model,
             "quieter": pick,
-            "confidence": round(statistics.mean(g[1] for g in agree), 2),
+            "confidence": round(min(1.0, max(0.5, statistics.mean(implied))), 2),
             "agreement": round(len(agree) / len(good), 2),
             "valid_samples": len(good),
             "reason": agree[0][2],
+            "raw": [[g[0], g[1]] for g in good],
         })
     print(json.dumps(out, indent=2))
 

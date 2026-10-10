@@ -61,15 +61,39 @@ Measurements are <strong>relative</strong> sound levels from one phone microphon
   <h2>3. Score</h2>
   <button id="scoreBtn">Score predictions</button>
   <button id="exportBtn">Export JSON</button>
+  <button id="resetBtn">Start over</button>
   <pre id="scoreOut">Not scored yet.</pre>
 </section>
 
 <script>
+const STORE = "pio-state-v1";
+const FIELDS = ["descA", "descB", "when", "locA", "locB", "preds", "cond"];
 const state = { locA: "", locB: "", predictions: [], runs: [], conditions: "", locked: false };
 const $ = id => document.getElementById(id);
 
 const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
 const median = a => { const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+
+// Persist so a reload or a killed background tab does not wipe the lock and the runs.
+function save() {
+  try {
+    const fields = {};
+    for (const id of FIELDS) fields[id] = $(id).value;
+    localStorage.setItem(STORE, JSON.stringify({ state, fields }));
+  } catch (e) { /* storage blocked: page still works, just without restore */ }
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE);
+    if (!raw) return;
+    const o = JSON.parse(raw);
+    Object.assign(state, o.state);
+    for (const [id, v] of Object.entries(o.fields || {})) if ($(id)) $(id).value = v;
+    if (state.locked) showLocked();
+    renderLog();
+  } catch (e) { /* ignore corrupt storage */ }
+}
+for (const id of FIELDS) $(id).addEventListener("input", save);
 
 function buildPrompt() {
   return `Two places will be compared with a phone microphone.
@@ -86,7 +110,14 @@ $("copyPrompt").onclick = async () => {
   catch (e) { $("promptOut").textContent = buildPrompt() + "\n\n(Clipboard blocked; copy manually.)"; }
 };
 
+function showLocked() {
+  $("preds").disabled = $("lockPred").disabled = true;
+  $("predOut").textContent = `Locked at ${state.lockedAt}\n${state.predictions.length} predictions for ${state.locA} vs ${state.locB}.`;
+}
+
 $("lockPred").onclick = () => {
+  if (state.locked) { $("predOut").textContent = "Already locked. Use Start over to begin a new experiment."; return; }
+  if (state.runs.length) { $("predOut").textContent = "Cannot lock after measuring."; return; }
   let preds;
   try { preds = JSON.parse($("preds").value); } catch (e) { $("predOut").textContent = "Invalid JSON: " + e.message; return; }
   if (!Array.isArray(preds) || preds.length === 0) { $("predOut").textContent = "Need a non-empty JSON array."; return; }
@@ -98,7 +129,8 @@ $("lockPred").onclick = () => {
   }
   state.locA = $("locA").value; state.locB = $("locB").value;
   state.predictions = preds; state.locked = true; state.lockedAt = new Date().toISOString();
-  $("predOut").textContent = `Locked at ${state.lockedAt}\n${preds.length} predictions for ${state.locA} vs ${state.locB}.`;
+  showLocked();
+  save();
 };
 
 let busy = false;
@@ -110,79 +142,101 @@ async function measure(loc) {
   finally { busy = false; $("mA").disabled = $("mB").disabled = false; }
 }
 
+const MIN_SECONDS = 27;      // a 30 s run with fewer captured seconds was throttled and is discarded
+const SILENCE_DBFS = -120;   // below this the audio context delivered silence
+
 async function measureRun(loc) {
   if (!state.locked) { $("log").textContent = "Lock predictions first."; return; }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    $("log").textContent = "Microphone API unavailable. Open this page in Chrome via file:// or http://localhost (run: python3 -m http.server 8000).";
+    $("log").textContent = "Microphone API unavailable: this page needs a secure context. On a phone open the https link (GitHub Pages). On a laptop use file:// or http://localhost (python3 -m http.server 8000).";
     return;
   }
   state.conditions = $("cond").value;
-  $("log").textContent = `Measuring ${loc} for 30 s... stay still.`;
+  $("log").textContent = `Measuring ${loc} for 30 s... stay still and keep the screen on.`;
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
   } catch (e) { $("log").textContent = "Microphone error: " + e.message; return; }
+  let wake = null;
+  try { if (navigator.wakeLock) wake = await navigator.wakeLock.request("screen"); } catch (e) { /* optional */ }
   const ctx = new AudioContext();
+  try { await ctx.resume(); } catch (e) { /* checked via silence guard below */ }
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 2048;
   ctx.createMediaStreamSource(stream).connect(analyser);
   const buf = new Float32Array(analyser.fftSize);
-  const perSecond = [];
+  const perSecond = [];   // dBFS of the mean energy in each second
   let frame = [];
+  let totalEnergy = 0, totalFrames = 0;
+  const startedAt = new Date().toISOString();
   const t0 = performance.now();
   await new Promise(resolve => {
     const tick = () => {
       analyser.getFloatTimeDomainData(buf);
       let sum = 0;
       for (const v of buf) sum += v * v;
-      frame.push(20 * Math.log10(Math.sqrt(sum / buf.length) + 1e-12));
+      const energy = sum / buf.length;
+      frame.push(energy); totalEnergy += energy; totalFrames++;
       const elapsed = (performance.now() - t0) / 1000;
-      if (elapsed >= perSecond.length + 1) { perSecond.push(mean(frame)); frame = []; }
+      if (elapsed >= perSecond.length + 1) { perSecond.push(10 * Math.log10(mean(frame) + 1e-24)); frame = []; }
       if (elapsed >= 30) resolve(); else setTimeout(tick, 50);
     };
     tick();
   });
   stream.getTracks().forEach(t => t.stop());
   ctx.close();
+  if (wake) { try { await wake.release(); } catch (e) { /* ignore */ } }
+  const levelDbfs = 10 * Math.log10(totalEnergy / totalFrames + 1e-24); // energy-averaged level (Leq), dBFS
+  if (perSecond.length < MIN_SECONDS) {
+    $("log").textContent = `Run discarded: only ${perSecond.length} s captured (screen off or tab in background?). Keep the screen on and this tab visible, then repeat.\n` + logText();
+    return;
+  }
+  if (levelDbfs < SILENCE_DBFS) {
+    $("log").textContent = `Run discarded: audio was silent (${levelDbfs.toFixed(0)} dBFS). Check microphone permission and reload, then repeat.\n` + logText();
+    return;
+  }
   state.runs.push({
-    loc, startedAt: new Date(Date.now() - 30000).toISOString(),
+    loc, startedAt, endedAt: new Date().toISOString(),
     conditions: state.conditions,
     perSecondDbfs: perSecond.map(v => +v.toFixed(2)),
+    levelDbfs: +levelDbfs.toFixed(2),
     medianDbfs: +median(perSecond).toFixed(2)
   });
+  state.score = null; // any earlier score is stale now
+  save();
   renderLog();
 }
 
-function renderLog() {
-  if (!state.runs.length) { $("log").textContent = "No runs yet."; return; }
-  $("log").textContent = state.runs.map((r, i) =>
-    `#${i + 1} ${r.loc === "A" ? state.locA : state.locB} (${r.loc}): median ${r.medianDbfs} dBFS, ` +
-    `${r.perSecondDbfs.length} s samples. Conditions: ${r.conditions || "-"}`).join("\n");
+function logText() {
+  if (!state.runs.length) return "No runs yet.";
+  return state.runs.map((r, i) =>
+    `#${i + 1} ${r.loc === "A" ? state.locA : state.locB} (${r.loc}): ${r.levelDbfs} dBFS (energy avg), ` +
+    `${r.perSecondDbfs.length} s, started ${r.startedAt.slice(11, 19)}Z. Conditions: ${r.conditions || "-"}`).join("\n");
 }
+function renderLog() { $("log").textContent = logText(); }
 
 $("mA").onclick = () => measure("A");
 $("mB").onclick = () => measure("B");
 
 $("scoreBtn").onclick = () => {
   if (!state.locked) { $("scoreOut").textContent = "Lock predictions first."; return; }
-  const byLoc = { A: [], B: [] };
-  for (const r of state.runs) byLoc[r.loc].push(r.medianDbfs);
+  const byLoc = { A: [], B: [] }, starts = { A: [], B: [] };
+  for (const r of state.runs) { byLoc[r.loc].push(r.levelDbfs); starts[r.loc].push(Date.parse(r.startedAt)); }
   if (byLoc.A.length < 2 || byLoc.B.length < 2) {
     $("scoreOut").textContent = `Need at least 2 runs at each place for a repeatability check (A: ${byLoc.A.length}, B: ${byLoc.B.length}).`;
     return;
   }
   const mA = median(byLoc.A), mB = median(byLoc.B);
   const gap = Math.abs(mA - mB);
-  const repA = byLoc.A.length > 1 ? Math.max(...byLoc.A) - Math.min(...byLoc.A) : null;
-  const repB = byLoc.B.length > 1 ? Math.max(...byLoc.B) - Math.min(...byLoc.B) : null;
-  const repeatabilityNote = (repA === null || repB === null)
-    ? "Repeatability NOT checked: run each location at least twice."
-    : `Within-site spread: A ${repA.toFixed(2)} dB, B ${repB.toFixed(2)} dB.`;
-  const inconclusive = gap === 0 || (repA !== null && repB !== null && Math.max(repA, repB) >= gap);
+  const repA = Math.max(...byLoc.A) - Math.min(...byLoc.A);
+  const repB = Math.max(...byLoc.B) - Math.min(...byLoc.B);
+  const inconclusive = gap === 0 || Math.max(repA, repB) >= gap;
   const truth = mA < mB ? "A" : "B"; // lower dBFS = quieter
+  const minutesApart = Math.round(Math.abs(mean(starts.A) - mean(starts.B)) / 60000);
   const lines = [
-    `Between-site gap: ${gap.toFixed(2)} dB (A median ${mA.toFixed(2)}, B median ${mB.toFixed(2)}).`,
-    repeatabilityNote,
+    `Between-site gap: ${gap.toFixed(2)} dB (A level ${mA.toFixed(2)}, B level ${mB.toFixed(2)}).`,
+    `Within-site spread: A ${repA.toFixed(2)} dB, B ${repB.toFixed(2)} dB.`,
+    `Average time between the A runs and the B runs: ${minutesApart} min.` + (minutesApart > 30 ? " Time of day may explain part of the gap." : ""),
     inconclusive
       ? "VERDICT: INCONCLUSIVE. Measurement could not separate the two sites. Do not score models on this run."
       : `Measured quieter location: ${truth === "A" ? state.locA : state.locB} (${truth}).`,
@@ -200,7 +254,8 @@ $("scoreBtn").onclick = () => {
     lines.push("NOTE: one experiment is one data point. Do not declare a winner from this alone.");
   }
   $("scoreOut").textContent = lines.join("\n");
-  state.score = { gap, repA, repB, inconclusive, truth: inconclusive ? null : truth };
+  state.score = { gap, repA, repB, minutesApart, inconclusive, truth: inconclusive ? null : truth };
+  save();
 };
 
 $("exportBtn").onclick = () => {
@@ -208,6 +263,15 @@ $("exportBtn").onclick = () => {
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "prove-it-outside-run.json" });
   a.click();
 };
+
+let resetArmed = false;
+$("resetBtn").onclick = () => {
+  if (!resetArmed) { resetArmed = true; $("resetBtn").textContent = "Click again to erase everything"; return; }
+  try { localStorage.removeItem(STORE); } catch (e) { /* ignore */ }
+  location.reload();
+};
+
+load();
 </script>
 </body>
 </html>
