@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prove It Outside</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #1a1a1a; }
+  section { border: 1px solid #ccc; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+  label { display: block; margin: .5rem 0; }
+  input, textarea { width: 100%; box-sizing: border-box; font-family: inherit; padding: .4rem; }
+  textarea { font-family: ui-monospace, monospace; font-size: .9rem; }
+  button { padding: .45rem .9rem; margin: .25rem .25rem .25rem 0; cursor: pointer; }
+  pre { background: #f5f5f5; padding: .75rem; overflow-x: auto; white-space: pre-wrap; border-radius: 6px; }
+  .note { color: #555; font-size: .9rem; }
+  .warn { color: #8a4b00; }
+</style>
+</head>
+<body>
+
+<h1>Prove It Outside</h1>
+<p>Make a model's prediction about the physical world, go outside, measure, and score it.
+Measurements are <strong>relative</strong> sound levels from one phone microphone (dBFS, uncalibrated). Compare only within one session and one device.</p>
+
+<section id="describe">
+  <h2>0. Describe the places</h2>
+  <p class="note">Every model gets this exact text, so differences come from the model, not the input.</p>
+  <label>Location A description <textarea id="descA" rows="3" placeholder="e.g. Side street in a residential area, two blocks from the main road, some trees, no shops."></textarea></label>
+  <label>Location B description <textarea id="descB" rows="3" placeholder="e.g. Corner by a bus stop on the main road, shops opposite."></textarea></label>
+  <label>Time of measurement <input id="when" placeholder="e.g. Sunday 4 PM, dry, light wind"></label>
+  <button id="makePrompt">Build prompt</button>
+  <pre id="promptOut">Fill in the fields and click Build prompt.</pre>
+  <button id="copyPrompt">Copy prompt</button>
+  <p class="note">Run it on each open model, e.g. with <code>run_models.py</code> in this folder, then paste the result below.</p>
+</section>
+
+<section id="predict">
+  <h2>1. Predictions</h2>
+  <label>Location A <input id="locA" value="Place A"></label>
+  <label>Location B <input id="locB" value="Place B"></label>
+  <label>Model predictions (JSON array). Each entry: <code>model</code>, <code>quieter</code> ("A" or "B"), <code>confidence</code> (0.5–1, probability its pick is correct), <code>reason</code>.
+    <textarea id="preds" rows="8" placeholder='[{"model":"open-model-1","quieter":"A","confidence":0.7,"reason":"Quieter residential street, away from main road"}]'></textarea>
+  </label>
+  <button id="lockPred">Lock predictions</button>
+  <p class="note">Lock predictions BEFORE you measure. Each model should get the same description of both locations.</p>
+  <pre id="predOut">Not locked yet.</pre>
+</section>
+
+<section id="measure">
+  <h2>2. Measure</h2>
+  <label>Conditions (weather, wind, traffic, time, phone model)
+    <input id="cond" placeholder="e.g. 14:10, light breeze, dry, Pixel 8, phone at chest height">
+  </label>
+  <button id="mA">Measure A (30 s)</button>
+  <button id="mB">Measure B (30 s)</button>
+  <p class="note">Measure each location at least twice for repeatability. Keep the phone and gain settings the same. Stand still and keep the phone pointing the same way.</p>
+  <pre id="log">No runs yet.</pre>
+</section>
+
+<section id="score">
+  <h2>3. Score</h2>
+  <button id="scoreBtn">Score predictions</button>
+  <button id="exportBtn">Export JSON</button>
+  <pre id="scoreOut">Not scored yet.</pre>
+</section>
+
+<script>
+const state = { locA: "", locB: "", predictions: [], runs: [], conditions: "", locked: false };
+const $ = id => document.getElementById(id);
+
+const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+const median = a => { const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+
+function buildPrompt() {
+  return `Two places will be compared with a phone microphone.
+Place A: ${$("descA").value.trim()}
+Place B: ${$("descB").value.trim()}
+Conditions: ${$("when").value.trim() || "unspecified"}
+
+Which place will have the lower average sound level over a 30-second measurement?
+Answer with JSON only: {"quieter":"A" or "B","confidence":<number from 0.5 to 1, your probability that your pick is correct>,"reason":"<one sentence>"}`;
+}
+$("makePrompt").onclick = () => { $("promptOut").textContent = buildPrompt(); };
+$("copyPrompt").onclick = async () => {
+  try { await navigator.clipboard.writeText(buildPrompt()); $("copyPrompt").textContent = "Copied"; }
+  catch (e) { $("promptOut").textContent = buildPrompt() + "\n\n(Clipboard blocked; copy manually.)"; }
+};
+
+$("lockPred").onclick = () => {
+  let preds;
+  try { preds = JSON.parse($("preds").value); } catch (e) { $("predOut").textContent = "Invalid JSON: " + e.message; return; }
+  if (!Array.isArray(preds) || preds.length === 0) { $("predOut").textContent = "Need a non-empty JSON array."; return; }
+  for (const p of preds) {
+    if (typeof p.quieter === "string") p.quieter = p.quieter.trim().toUpperCase();
+    if (!["A", "B"].includes(p.quieter) || typeof p.confidence !== "number" || p.confidence < 0.5 || p.confidence > 1) {
+      $("predOut").textContent = "Bad entry (quieter must be A or B, confidence 0.5–1): " + JSON.stringify(p); return;
+    }
+  }
+  state.locA = $("locA").value; state.locB = $("locB").value;
+  state.predictions = preds; state.locked = true; state.lockedAt = new Date().toISOString();
+  $("predOut").textContent = `Locked at ${state.lockedAt}\n${preds.length} predictions for ${state.locA} vs ${state.locB}.`;
+};
+
+let busy = false;
+async function measure(loc) {
+  if (busy) return;
+  busy = true;
+  $("mA").disabled = $("mB").disabled = true;
+  try { await measureRun(loc); }
+  finally { busy = false; $("mA").disabled = $("mB").disabled = false; }
+}
+
+async function measureRun(loc) {
+  if (!state.locked) { $("log").textContent = "Lock predictions first."; return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    $("log").textContent = "Microphone API unavailable. Open this page in Chrome via file:// or http://localhost (run: python3 -m http.server 8000).";
+    return;
+  }
+  state.conditions = $("cond").value;
+  $("log").textContent = `Measuring ${loc} for 30 s... stay still.`;
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  } catch (e) { $("log").textContent = "Microphone error: " + e.message; return; }
+  const ctx = new AudioContext();
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 2048;
+  ctx.createMediaStreamSource(stream).connect(analyser);
+  const buf = new Float32Array(analyser.fftSize);
+  const perSecond = [];
+  let frame = [];
+  const t0 = performance.now();
+  await new Promise(resolve => {
+    const tick = () => {
+      analyser.getFloatTimeDomainData(buf);
+      let sum = 0;
+      for (const v of buf) sum += v * v;
+      frame.push(20 * Math.log10(Math.sqrt(sum / buf.length) + 1e-12));
+      const elapsed = (performance.now() - t0) / 1000;
+      if (elapsed >= perSecond.length + 1) { perSecond.push(mean(frame)); frame = []; }
+      if (elapsed >= 30) resolve(); else setTimeout(tick, 50);
+    };
+    tick();
+  });
+  stream.getTracks().forEach(t => t.stop());
+  ctx.close();
+  state.runs.push({
+    loc, startedAt: new Date(Date.now() - 30000).toISOString(),
+    conditions: state.conditions,
+    perSecondDbfs: perSecond.map(v => +v.toFixed(2)),
+    medianDbfs: +median(perSecond).toFixed(2)
+  });
+  renderLog();
+}
+
+function renderLog() {
+  if (!state.runs.length) { $("log").textContent = "No runs yet."; return; }
+  $("log").textContent = state.runs.map((r, i) =>
+    `#${i + 1} ${r.loc === "A" ? state.locA : state.locB} (${r.loc}): median ${r.medianDbfs} dBFS, ` +
+    `${r.perSecondDbfs.length} s samples. Conditions: ${r.conditions || "-"}`).join("\n");
+}
+
+$("mA").onclick = () => measure("A");
+$("mB").onclick = () => measure("B");
+
+$("scoreBtn").onclick = () => {
+  if (!state.locked) { $("scoreOut").textContent = "Lock predictions first."; return; }
+  const byLoc = { A: [], B: [] };
+  for (const r of state.runs) byLoc[r.loc].push(r.medianDbfs);
+  if (byLoc.A.length < 2 || byLoc.B.length < 2) {
+    $("scoreOut").textContent = `Need at least 2 runs at each place for a repeatability check (A: ${byLoc.A.length}, B: ${byLoc.B.length}).`;
+    return;
+  }
+  const mA = median(byLoc.A), mB = median(byLoc.B);
+  const gap = Math.abs(mA - mB);
+  const repA = byLoc.A.length > 1 ? Math.max(...byLoc.A) - Math.min(...byLoc.A) : null;
+  const repB = byLoc.B.length > 1 ? Math.max(...byLoc.B) - Math.min(...byLoc.B) : null;
+  const repeatabilityNote = (repA === null || repB === null)
+    ? "Repeatability NOT checked: run each location at least twice."
+    : `Within-site spread: A ${repA.toFixed(2)} dB, B ${repB.toFixed(2)} dB.`;
+  const inconclusive = gap === 0 || (repA !== null && repB !== null && Math.max(repA, repB) >= gap);
+  const truth = mA < mB ? "A" : "B"; // lower dBFS = quieter
+  const lines = [
+    `Between-site gap: ${gap.toFixed(2)} dB (A median ${mA.toFixed(2)}, B median ${mB.toFixed(2)}).`,
+    repeatabilityNote,
+    inconclusive
+      ? "VERDICT: INCONCLUSIVE. Measurement could not separate the two sites. Do not score models on this run."
+      : `Measured quieter location: ${truth === "A" ? state.locA : state.locB} (${truth}).`,
+    ""
+  ];
+  if (!inconclusive) {
+    let total = 0;
+    for (const p of state.predictions) {
+      const correct = p.quieter === truth ? 1 : 0;
+      const brier = (p.confidence - correct) ** 2; // lower is better
+      total += brier;
+      lines.push(`${p.model}: picked ${p.quieter}, confidence ${p.confidence}, ${correct ? "CORRECT" : "wrong"}, Brier ${brier.toFixed(3)}`);
+    }
+    lines.push("", `Mean Brier (lower is better): ${(total / state.predictions.length).toFixed(3)}`);
+    lines.push("NOTE: one experiment is one data point. Do not declare a winner from this alone.");
+  }
+  $("scoreOut").textContent = lines.join("\n");
+  state.score = { gap, repA, repB, inconclusive, truth: inconclusive ? null : truth };
+};
+
+$("exportBtn").onclick = () => {
+  const blob = new Blob([JSON.stringify({ ...state, exportedAt: new Date().toISOString() }, null, 2)], { type: "application/json" });
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "prove-it-outside-run.json" });
+  a.click();
+};
+</script>
+</body>
+</html>
