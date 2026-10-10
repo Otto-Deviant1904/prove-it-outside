@@ -3,67 +3,185 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#C8C6BF">
 <title>Prove It Outside</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=B612+Mono:wght@400;700&family=Big+Shoulders+Stencil+Display:wght@800&display=swap">
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #1a1a1a; }
-  section { border: 1px solid #ccc; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
-  label { display: block; margin: .5rem 0; }
-  input, textarea { width: 100%; box-sizing: border-box; font-family: inherit; padding: .4rem; }
-  textarea { font-family: ui-monospace, monospace; font-size: .9rem; }
-  button { padding: .45rem .9rem; margin: .25rem .25rem .25rem 0; cursor: pointer; }
-  pre { background: #f5f5f5; padding: .75rem; overflow-x: auto; white-space: pre-wrap; border-radius: 6px; }
-  .note { color: #555; font-size: .9rem; }
-  .warn { color: #8a4b00; }
+  :root {
+    --pave: #C8C6BF;      /* sidewalk */
+    --asphalt: #1B1B1A;   /* ink */
+    --chalk: #F4F5F2;     /* fields */
+    --blue: #1B4FD8;      /* utility-locate blue: place A */
+    --orange: #FF5A00;    /* locate orange: place B */
+    --hazard: #FFD400;    /* inconclusive only */
+    --stencil: "Big Shoulders Stencil Display", Impact, "Arial Narrow Bold", sans-serif;
+    --body: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "B612 Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--pave); color: var(--asphalt);
+    font: 400 1.0625rem/1.5 var(--body);
+  }
+  main { max-width: 44rem; margin: 0 auto; padding: 2rem clamp(1rem, 4vw, 2rem) 4rem; }
+
+  h1 {
+    margin: 0; font: 800 clamp(3.4rem, 15vw, 7rem)/.84 var(--stencil);
+    text-transform: uppercase; letter-spacing: .01em;
+  }
+  .lede { max-width: 32rem; margin: 1.25rem 0 .5rem; font-size: 1.2rem; font-weight: 600; }
+  .legend { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: 0 0 3rem; padding: 0; list-style: none; font: 400 .85rem var(--mono); }
+  .legend li::before { content: ""; display: inline-block; width: .9rem; height: .9rem; margin-right: .45rem; vertical-align: -.1rem; }
+  .legend .a::before { background: var(--blue); }
+  .legend .b::before { background: var(--orange); }
+
+  .step { border-top: 4px dashed var(--asphalt); padding: 1.75rem 0 2.25rem; }
+  .step h2 {
+    display: flex; align-items: baseline; gap: .8rem; margin: 0 0 1rem;
+    font: 800 2.1rem/1 var(--stencil); text-transform: uppercase; letter-spacing: .02em;
+  }
+  .step h2 .n { font-size: 3.4rem; line-height: .8; }
+  .hint { margin: .25rem 0 1rem; font-size: .92rem; }
+
+  label { display: block; margin: 1rem 0 0; font: 700 .78rem/1.2 var(--body); text-transform: uppercase; letter-spacing: .09em; }
+  label.a, label.b { padding-left: .7rem; border-left: 10px solid; }
+  label.a { border-color: var(--blue); }
+  label.b { border-color: var(--orange); }
+  input, textarea {
+    display: block; width: 100%; margin-top: .4rem; padding: .65rem .75rem;
+    background: var(--chalk); color: var(--asphalt);
+    border: 2px solid var(--asphalt); border-radius: 0;
+    font: 400 .9rem/1.45 var(--mono); text-transform: none; letter-spacing: 0;
+  }
+  textarea { resize: vertical; }
+  ::placeholder { color: #5d5d58; opacity: 1; }
+
+  button {
+    min-height: 2.9rem; margin: 1rem .5rem 0 0; padding: .6rem 1.1rem;
+    background: var(--asphalt); color: var(--chalk); border: 2px solid var(--asphalt); border-radius: 0;
+    font: 700 .85rem/1 var(--body); text-transform: uppercase; letter-spacing: .09em; cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: #3a3a38; border-color: #3a3a38; }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.quiet { background: transparent; color: var(--asphalt); }
+  button.quiet:hover:not(:disabled) { background: var(--asphalt); color: var(--chalk); }
+  button.pa { background: var(--blue); border-color: var(--blue); color: #fff; }
+  button.pa:hover:not(:disabled) { background: #1740aa; border-color: #1740aa; }
+  button.pb { background: var(--orange); border-color: var(--orange); color: var(--asphalt); }
+  button.pb:hover:not(:disabled) { background: #e04d00; border-color: #e04d00; }
+  button small { font-weight: 400; letter-spacing: .04em; }
+  :focus-visible { outline: 3px solid var(--asphalt); outline-offset: 3px; }
+  input:focus-visible, textarea:focus-visible { outline-offset: 0; background: #fff; }
+
+  pre, .runs {
+    margin: 1rem 0 0; padding: .8rem 1rem; background: var(--chalk);
+    border-left: 10px solid var(--asphalt);
+    font: 400 .85rem/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  pre.inconclusive { background: var(--hazard); font-weight: 700; }
+  .runs { padding: 0; border-left: 0; background: none; }
+  .run { margin: 0 0 .4rem; padding: .5rem .8rem; background: var(--chalk); border-left: 10px solid var(--asphalt); }
+  .run.a { border-left-color: var(--blue); }
+  .run.b { border-left-color: var(--orange); }
+  .run b { font-weight: 700; }
+
+  .measure-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  #clock { min-width: 4.5rem; font: 800 5rem/.8 var(--stencil); text-align: right; font-variant-numeric: tabular-nums; }
+  #clock:empty::before { content: "30"; opacity: .25; }
+
+  footer { border-top: 4px dashed var(--asphalt); padding-top: 1.25rem; font-size: .88rem; max-width: 36rem; }
+
+  @media (max-width: 30rem) {
+    .step h2 { font-size: 1.7rem; }
+    .step h2 .n { font-size: 2.8rem; }
+    button { width: 100%; margin-right: 0; }
+    .measure-row { align-items: stretch; }
+    .measure-row > div { width: 100%; }
+    #clock { font-size: 4rem; text-align: left; }
+  }
+  @media (prefers-reduced-motion: reduce) { button:active:not(:disabled) { transform: none; } }
 </style>
 </head>
 <body>
+<main>
 
-<h1>Prove It Outside</h1>
-<p>Make a model's prediction about the physical world, go outside, measure, and score it.
-Measurements are <strong>relative</strong> sound levels from one phone microphone (dBFS, uncalibrated). Compare only within one session and one device.</p>
+<header>
+  <h1>Prove it<br>outside</h1>
+  <p class="lede">Ask an open model which of two places is quieter. Lock its answer. Go there and measure.</p>
+  <ul class="legend" aria-label="Colour key">
+    <li class="a">Place A</li>
+    <li class="b">Place B</li>
+  </ul>
+</header>
 
-<section id="describe">
-  <h2>0. Describe the places</h2>
-  <p class="note">Every model gets this exact text, so differences come from the model, not the input.</p>
-  <label>Location A description <textarea id="descA" rows="3" placeholder="e.g. Side street in a residential area, two blocks from the main road, some trees, no shops."></textarea></label>
-  <label>Location B description <textarea id="descB" rows="3" placeholder="e.g. Corner by a bus stop on the main road, shops opposite."></textarea></label>
-  <label>Time of measurement <input id="when" placeholder="e.g. Sunday 4 PM, dry, light wind"></label>
-  <button id="makePrompt">Build prompt</button>
-  <pre id="promptOut">Fill in the fields and click Build prompt.</pre>
-  <button id="copyPrompt">Copy prompt</button>
-  <p class="note">Run it on each open model, e.g. with <code>run_models.py</code> in this folder, then paste the result below.</p>
+<section class="step" id="describe">
+  <h2><span class="n">1</span> Describe the places</h2>
+  <p class="hint">Every model gets this exact text, so any difference comes from the model.</p>
+  <label class="a" for="descA">Place A
+    <textarea id="descA" rows="3" placeholder="Side street in a residential area, two blocks from the main road, some trees, no shops."></textarea>
+  </label>
+  <label class="b" for="descB">Place B
+    <textarea id="descB" rows="3" placeholder="Corner by a bus stop on the main road, shops opposite."></textarea>
+  </label>
+  <label for="when">When you will measure
+    <input id="when" placeholder="Sunday 4 PM, dry, light wind">
+  </label>
+  <button id="makePrompt" class="quiet">Build prompt</button>
+  <button id="copyPrompt" class="quiet">Copy prompt</button>
+  <pre id="promptOut">Fill in both places, then build the prompt.</pre>
+  <p class="hint">Run the prompt on each open model, for example with <code>run_models.py</code>, then paste the answers in step 2.</p>
 </section>
 
-<section id="predict">
-  <h2>1. Predictions</h2>
-  <label>Location A <input id="locA" value="Place A"></label>
-  <label>Location B <input id="locB" value="Place B"></label>
-  <label>Model predictions (JSON array). Each entry: <code>model</code>, <code>quieter</code> ("A" or "B"), <code>confidence</code> (0.5–1, probability its pick is correct), <code>reason</code>.
-    <textarea id="preds" rows="8" placeholder='[{"model":"open-model-1","quieter":"A","confidence":0.7,"reason":"Quieter residential street, away from main road"}]'></textarea>
+<section class="step" id="predict">
+  <h2><span class="n">2</span> Lock the predictions</h2>
+  <label class="a" for="locA">Name of place A
+    <input id="locA" value="Place A">
   </label>
+  <label class="b" for="locB">Name of place B
+    <input id="locB" value="Place B">
+  </label>
+  <label for="preds">Model predictions (JSON array)
+    <textarea id="preds" rows="8" placeholder='[{"model":"open-model-1","quieter":"A","confidence":0.7,"reason":"Quieter residential street, away from the main road"}]'></textarea>
+  </label>
+  <p class="hint">Each entry needs <code>model</code>, <code>quieter</code> ("A" or "B"), <code>confidence</code> (0.5 to 1, the chance its pick is right) and <code>reason</code>.</p>
   <button id="lockPred">Lock predictions</button>
-  <p class="note">Lock predictions BEFORE you measure. Each model should get the same description of both locations.</p>
-  <pre id="predOut">Not locked yet.</pre>
+  <pre id="predOut">Not locked yet. After locking, the predictions cannot change.</pre>
 </section>
 
-<section id="measure">
-  <h2>2. Measure</h2>
-  <label>Conditions (weather, wind, traffic, time, phone model)
-    <input id="cond" placeholder="e.g. 14:10, light breeze, dry, Pixel 8, phone at chest height">
+<section class="step" id="measure">
+  <h2><span class="n">3</span> Measure</h2>
+  <label for="cond">Conditions
+    <input id="cond" placeholder="14:10, light breeze, dry, phone at chest height">
   </label>
-  <button id="mA">Measure A (30 s)</button>
-  <button id="mB">Measure B (30 s)</button>
-  <p class="note">Measure each location at least twice for repeatability. Keep the phone and gain settings the same. Stand still and keep the phone pointing the same way.</p>
-  <pre id="log">No runs yet.</pre>
+  <div class="measure-row">
+    <div>
+      <button id="mA" class="pa">Measure A <small>30 s</small></button>
+      <button id="mB" class="pb">Measure B <small>30 s</small></button>
+    </div>
+    <output id="clock" aria-label="Seconds left"></output>
+  </div>
+  <p class="hint">Run each place at least twice. Same phone, same posture, screen on, stand still.</p>
+  <pre id="log">Waiting for a measurement.</pre>
+  <div id="runs" class="runs"></div>
 </section>
 
-<section id="score">
-  <h2>3. Score</h2>
+<section class="step" id="score">
+  <h2><span class="n">4</span> Score</h2>
   <button id="scoreBtn">Score predictions</button>
-  <button id="exportBtn">Export JSON</button>
-  <button id="resetBtn">Start over</button>
+  <button id="exportBtn" class="quiet">Export JSON</button>
+  <button id="resetBtn" class="quiet">Start over</button>
   <pre id="scoreOut">Not scored yet.</pre>
 </section>
+
+<footer>
+  Levels are relative dBFS from one uncalibrated phone microphone, not dB(A). Compare places only within one session on one device. One experiment is one data point.
+</footer>
+
+</main>
 
 <script>
 const STORE = "pio-state-v1";
@@ -152,7 +270,7 @@ async function measureRun(loc) {
     return;
   }
   state.conditions = $("cond").value;
-  $("log").textContent = `Measuring ${loc} for 30 s... stay still and keep the screen on.`;
+  $("log").textContent = `Measuring ${loc}. Stay still and keep the screen on.`;
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
@@ -169,6 +287,7 @@ async function measureRun(loc) {
   let frame = [];
   let totalEnergy = 0, totalFrames = 0;
   const startedAt = new Date().toISOString();
+  $("clock").textContent = "30";
   const t0 = performance.now();
   await new Promise(resolve => {
     const tick = () => {
@@ -178,21 +297,25 @@ async function measureRun(loc) {
       const energy = sum / buf.length;
       frame.push(energy); totalEnergy += energy; totalFrames++;
       const elapsed = (performance.now() - t0) / 1000;
-      if (elapsed >= perSecond.length + 1) { perSecond.push(10 * Math.log10(mean(frame) + 1e-24)); frame = []; }
+      if (elapsed >= perSecond.length + 1) {
+        perSecond.push(10 * Math.log10(mean(frame) + 1e-24)); frame = [];
+        $("clock").textContent = String(Math.max(0, 30 - perSecond.length));
+      }
       if (elapsed >= 30) resolve(); else setTimeout(tick, 50);
     };
     tick();
   });
   stream.getTracks().forEach(t => t.stop());
   ctx.close();
+  $("clock").textContent = "";
   if (wake) { try { await wake.release(); } catch (e) { /* ignore */ } }
   const levelDbfs = 10 * Math.log10(totalEnergy / totalFrames + 1e-24); // energy-averaged level (Leq), dBFS
   if (perSecond.length < MIN_SECONDS) {
-    $("log").textContent = `Run discarded: only ${perSecond.length} s captured (screen off or tab in background?). Keep the screen on and this tab visible, then repeat.\n` + logText();
+    $("log").textContent = `Run discarded: only ${perSecond.length} s captured (screen off or tab in background?). Keep the screen on and this tab visible, then repeat.`;
     return;
   }
   if (levelDbfs < SILENCE_DBFS) {
-    $("log").textContent = `Run discarded: audio was silent (${levelDbfs.toFixed(0)} dBFS). Check microphone permission and reload, then repeat.\n` + logText();
+    $("log").textContent = `Run discarded: audio was silent (${levelDbfs.toFixed(0)} dBFS). Check microphone permission and reload, then repeat.`;
     return;
   }
   state.runs.push({
@@ -207,18 +330,27 @@ async function measureRun(loc) {
   renderLog();
 }
 
-function logText() {
-  if (!state.runs.length) return "No runs yet.";
-  return state.runs.map((r, i) =>
-    `#${i + 1} ${r.loc === "A" ? state.locA : state.locB} (${r.loc}): ${r.levelDbfs} dBFS (energy avg), ` +
-    `${r.perSecondDbfs.length} s, started ${r.startedAt.slice(11, 19)}Z. Conditions: ${r.conditions || "-"}`).join("\n");
+function renderLog() {
+  const box = $("runs");
+  box.replaceChildren();
+  if (!state.runs.length) { $("log").textContent = "No runs yet."; return; }
+  state.runs.forEach((r, i) => {
+    const row = document.createElement("div");
+    row.className = "run " + r.loc.toLowerCase();
+    const head = document.createElement("b");
+    head.textContent = `#${i + 1} ${r.loc === "A" ? state.locA : state.locB} (${r.loc}): ${r.levelDbfs} dBFS`;
+    row.append(head, document.createElement("br"),
+      `${r.perSecondDbfs.length} s, started ${r.startedAt.slice(11, 19)}Z. Conditions: ${r.conditions || "-"}`);
+    box.append(row);
+  });
+  $("log").textContent = `${state.runs.length} run${state.runs.length === 1 ? "" : "s"} recorded (energy-averaged level, relative dBFS).`;
 }
-function renderLog() { $("log").textContent = logText(); }
 
 $("mA").onclick = () => measure("A");
 $("mB").onclick = () => measure("B");
 
 $("scoreBtn").onclick = () => {
+  $("scoreOut").classList.remove("inconclusive");
   if (!state.locked) { $("scoreOut").textContent = "Lock predictions first."; return; }
   const byLoc = { A: [], B: [] }, starts = { A: [], B: [] };
   for (const r of state.runs) { byLoc[r.loc].push(r.levelDbfs); starts[r.loc].push(Date.parse(r.startedAt)); }
@@ -254,6 +386,7 @@ $("scoreBtn").onclick = () => {
     lines.push("NOTE: one experiment is one data point. Do not declare a winner from this alone.");
   }
   $("scoreOut").textContent = lines.join("\n");
+  $("scoreOut").classList.toggle("inconclusive", inconclusive);
   state.score = { gap, repA, repB, minutesApart, inconclusive, truth: inconclusive ? null : truth };
   save();
 };
