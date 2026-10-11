@@ -20,7 +20,7 @@ https://github.com/Otto-Deviant1904/prove-it-outside
 
 - `index.html`: the whole tool, one file, no build step, no network calls.
 - `run_models.py`: asks local Ollama models the same prompt several times and prints predictions.
-- `predictions.json` and `predictions_command.txt`: the exact predictions and the command that produced them. They were committed in git at `5eae448` before any measurement.
+- `predictions.json` and `predictions_command.txt`: the exact predictions and the command that produced them. They were committed in git at `e58013c` before any measurement.
 
 ## How I Built It
 

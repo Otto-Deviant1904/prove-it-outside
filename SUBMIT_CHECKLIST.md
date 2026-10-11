@@ -12,8 +12,8 @@ In step 2, name place A `Main Street` and place B `Convenience shop`. Add the tw
 
 ## 2. Measure (about 10 min at each place)
 Keep the screen on and the page visible for the whole 30 seconds. If the screen sleeps, the run is discarded.
-- At the street: two runs. Same posture each time: stand still, phone at chest height, mic facing the same way.
-- At the metro station: two runs.
+- At Main Street, in front of the college: two runs. Same posture each time: stand still, phone at chest height, mic facing the same way.
+- At the convenience shop near the metro station: two runs.
 - Fill the Conditions box before each run (time, wind, weather, traffic). Do the pair of runs at one place back to back.
 - Tap **Score predictions**, then **Export JSON**.
 
