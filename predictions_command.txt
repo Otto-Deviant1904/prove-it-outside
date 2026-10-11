@@ -1,6 +1,6 @@
 python3 run_models.py --models qwen3:4b llama3.2:3b \
-  --desc-a "The street directly in front of a college campus." \
-  --desc-b "The entrance area of the metro station closest to the measurer's home." \
-  --when "measured later today, same day, same device, about 30 seconds each" \
+  --desc-a "Main Street in the city, in front of a college." \
+  --desc-b "A convenience shop near a metro station." \
+  --when "Sunday 3 PM" \
   --samples 7 --temperature 0.7
-(Ollama local server, models qwen3:4b and llama3.2:3b as pulled from the Ollama registry. Sampling is unseeded, so reruns can differ; raw samples are stored in predictions.json.)
+(Ollama local server, models qwen3:4b and llama3.2:3b as pulled from the Ollama registry. Sampling is unseeded, so reruns can differ; raw samples are stored in predictions.json. Earlier runs for a different draft of place B are in the git history.)

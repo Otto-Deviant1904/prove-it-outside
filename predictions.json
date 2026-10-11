@@ -2,10 +2,10 @@
   {
     "model": "qwen3:4b",
     "quieter": "A",
-    "confidence": 0.79,
+    "confidence": 0.77,
     "agreement": 1.0,
     "valid_samples": 7,
-    "reason": "College campus streets typically have lower noise levels than metro station entrances due to less human activity and mechanical noise.",
+    "reason": "Main Street in front of a college on Sunday typically has fewer people and less activity than the metro station area which is a source of constant noise from trains and crowds.",
     "raw": [
       [
         "A",
@@ -13,48 +13,40 @@
       ],
       [
         "A",
-        0.85
-      ],
-      [
-        "A",
-        0.7
-      ],
-      [
-        "A",
-        0.85
-      ],
-      [
-        "A",
-        0.7
-      ],
-      [
-        "A",
-        0.85
-      ],
-      [
-        "A",
         0.8
+      ],
+      [
+        "A",
+        0.75
+      ],
+      [
+        "A",
+        0.75
+      ],
+      [
+        "A",
+        0.7
+      ],
+      [
+        "A",
+        0.75
+      ],
+      [
+        "A",
+        0.85
       ]
     ]
   },
   {
     "model": "llama3.2:3b",
-    "quieter": "B",
-    "confidence": 0.62,
-    "agreement": 0.71,
+    "quieter": "A",
+    "confidence": 0.79,
+    "agreement": 1.0,
     "valid_samples": 7,
-    "reason": "The metro station entrance is typically quieter than the street in front of a college campus due to the presence of buildings and traffic.",
+    "reason": "Main Street in front of a college is generally quieter than a convenience shop near a metro station on a Sunday afternoon.",
     "raw": [
       [
         "A",
-        0.7
-      ],
-      [
-        "B",
-        0.7
-      ],
-      [
-        "B",
         0.8
       ],
       [
@@ -62,16 +54,24 @@
         0.7
       ],
       [
-        "B",
-        0.7
+        "A",
+        0.8
       ],
       [
-        "B",
-        0.7
+        "A",
+        0.8
       ],
       [
-        "B",
-        0.85
+        "A",
+        0.8
+      ],
+      [
+        "A",
+        0.8
+      ],
+      [
+        "A",
+        0.8
       ]
     ]
   }

@@ -11,7 +11,7 @@ Scoring needs at least 2 runs at each place (the repeatability check).
 
 ## Workflow
 
-1. **Predict.** Enter two locations. Paste each open model's prediction as JSON: which place is quieter, its confidence (0.5–1), and its reason. Give every model the same description of both places. Click **Lock predictions** before you leave.
+1. **Predict.** Enter two locations. For each open model, enter which place it says is quieter and its confidence in percent (or paste the JSON that `run_models.py` prints). Give every model the same description of both places. Click **Lock predictions** before you leave.
 2. **Measure.** Stand at location A for 30 s and repeat once, then do the same at B (if the places are far apart, do both runs at one place back to back and note the times). The tool logs an energy-averaged level in dBFS per run. Keep the same phone, same settings, and same posture. Record conditions.
 3. **Score.** The tool compares site medians, checks repeatability, and reports either an inconclusive verdict or each model's Brier score (lower is better). Export the run as JSON.
 

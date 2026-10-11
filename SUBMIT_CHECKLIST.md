@@ -8,7 +8,7 @@ Already done: repo is public, models pulled, predictions made and committed (`pr
 Open the https link on your phone (GitHub Pages): https://otto-deviant1904.github.io/prove-it-outside/
 The microphone only works on a secure page, so do not use a local network address. If the page says the microphone API is unavailable, you opened an insecure link.
 
-Paste the contents of `predictions.json` into the Predictions box and tap **Lock predictions** BEFORE you leave. (Copy the file to your phone, or open it in the repo on GitHub and copy the text.)
+In step 2, name place A `Main Street` and place B `Convenience shop`. Add the two models and their answers from `predictions.json`: `qwen3:4b`, A is quieter, 77. `llama3.2:3b`, A is quieter, 79. (Or open "Paste JSON" and paste the whole file.) Tap **Lock predictions** BEFORE you leave.
 
 ## 2. Measure (about 10 min at each place)
 Keep the screen on and the page visible for the whole 30 seconds. If the screen sleeps, the run is discarded.

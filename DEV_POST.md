@@ -8,7 +8,7 @@ AI models are happy to tell you things about places they have never been. The on
 
 Prove It Outside makes an open-weight model commit to a falsifiable prediction about the physical world: *which of two places will be quieter?* The prediction and the model's confidence are locked first. Then I walk to both places, record sound with my phone, and the tool scores each model with a Brier score. If my measurements are too noisy to tell the two places apart, the tool says **inconclusive** and refuses to score anyone.
 
-The two places: the street in front of my college, and the entrance of the metro station nearest my home. The models were told only that, with no further detail.
+The two places: Main Street in the city, in front of my college (A), and a convenience shop near a metro station (B), measured on a Sunday at 3 PM. The models were told only those one-line descriptions.
 
 ## Demo
 
@@ -31,13 +31,13 @@ https://github.com/Otto-Deviant1904/prove-it-outside
 
 ## Why Open Innovation Matters
 
-A claim about the physical world is only worth something if someone else can test it. With open-weight models, anyone can run the same prompt on their own machine, see the raw samples, and go outside and check. I could see the individual samples behind each prediction, and that mattered: the first run I did had `llama3.2:3b` picking one place, and a second run with more samples had it picking the other. A hosted model behind an API would hide that instability. The tool is re-runnable by design: two places, the models you choose, a phone.
+A claim about the physical world is only worth something if someone else can test it. With open-weight models, anyone can run the same prompt on their own machine, see the raw samples, and go outside and check. I could see the individual samples behind each prediction, and that mattered: on an earlier draft of the place descriptions, `llama3.2:3b` picked one place in a first run and the other place in a second run with more samples. A hosted model behind an API would hide that instability. The tool is re-runnable by design: two places, the models you choose, a phone.
 
 ## What I Found
 
-**Predictions, locked before measuring.** `qwen3:4b` picked the street as quieter in 7 of 7 samples (confidence 0.79). `llama3.2:3b` picked the metro station in 5 of 7 samples (confidence 0.62). The models disagree, so this experiment can separate them.
+**Predictions, locked before measuring** (`predictions.json`, 7 samples each). `qwen3:4b` picked Main Street as quieter in 7 of 7 samples (confidence 0.77). `llama3.2:3b` also picked Main Street in 7 of 7 (confidence 0.79). Both models agree, so this experiment cannot rank them on accuracy; it can only show whether their shared prediction was right.
 
-**Honest note on reruns.** My first run used 5 samples and the older confidence method. There `llama3.2:3b` picked the street (4 of 5). I changed the confidence method after a review, reran with 7 samples, and report the rerun as the locked prediction. The first run is in the git history. The two runs together say that `llama3.2:3b`'s pick is unstable on this question. That is a result about the model, not noise to hide.
+**Honest note on reruns.** My first predictions used a draft of place B that did not match the place I actually measure (the metro station entrance instead of the convenience shop), so I discarded them and reran with the real descriptions before going outside. The earlier runs are in the git history. On that earlier draft `llama3.2:3b` flipped between runs, which is the instability noted above.
 
 [Measured results: A level, B level, within-place spread, verdict, Brier scores.]
 

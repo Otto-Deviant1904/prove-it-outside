@@ -77,6 +77,13 @@
   :focus-visible { outline: 3px solid var(--asphalt); outline-offset: 3px; }
   input:focus-visible, textarea:focus-visible { outline-offset: 0; background: #fff; }
 
+  select { display: block; width: 100%; margin-top: .4rem; padding: .65rem .5rem; background: var(--chalk); color: var(--asphalt); border: 2px solid var(--asphalt); border-radius: 0; font: 400 .9rem var(--mono); }
+  .predrow { display: grid; grid-template-columns: 1fr 9.5rem 6rem auto; gap: .5rem; align-items: end; margin-top: .5rem; }
+  .predrow input, .predrow select, .predrow button { margin: 0; }
+  .predrow button { min-height: 0; height: 2.9rem; }
+  details { margin-top: 1.25rem; }
+  summary { cursor: pointer; font-weight: 600; font-size: .92rem; }
+
   pre, .runs {
     margin: 1rem 0 0; padding: .8rem 1rem; background: var(--chalk);
     border-left: 10px solid var(--asphalt);
@@ -99,6 +106,9 @@
     .step h2 { font-size: 1.7rem; }
     .step h2 .n { font-size: 2.8rem; }
     button { width: 100%; margin-right: 0; }
+    .predrow { grid-template-columns: 1fr 1fr; }
+    .predrow input:first-child { grid-column: 1 / -1; }
+    .predrow button { grid-column: 1 / -1; }
     .measure-row { align-items: stretch; }
     .measure-row > div { width: 100%; }
     #clock { font-size: 4rem; text-align: left; }
@@ -144,10 +154,15 @@
   <label class="b" for="locB">Name of place B
     <input id="locB" value="Place B">
   </label>
-  <label for="preds">Model predictions (JSON array)
-    <textarea id="preds" rows="8" placeholder='[{"model":"open-model-1","quieter":"A","confidence":0.7,"reason":"Quieter residential street, away from the main road"}]'></textarea>
-  </label>
-  <p class="hint">Each entry needs <code>model</code>, <code>quieter</code> ("A" or "B"), <code>confidence</code> (0.5 to 1, the chance its pick is right) and <code>reason</code>.</p>
+  <p class="hint">Run the prompt from step 1 on each open model (any chat or runner works), then enter what each one answered. Confidence is the percent chance the model gave that its pick is right.</p>
+  <div id="predRows"></div>
+  <button id="addModel" type="button" class="quiet">Add a model</button>
+  <details>
+    <summary>Paste JSON from run_models.py instead</summary>
+    <label for="preds">Predictions (JSON array)
+      <textarea id="preds" rows="6" placeholder='[{"model":"open-model-1","quieter":"A","confidence":0.7,"reason":"..."}]'></textarea>
+    </label>
+  </details>
   <button id="lockPred">Lock predictions</button>
   <pre id="predOut">Not locked yet. After locking, the predictions cannot change.</pre>
 </section>
@@ -197,7 +212,7 @@ function save() {
   try {
     const fields = {};
     for (const id of FIELDS) fields[id] = $(id).value;
-    localStorage.setItem(STORE, JSON.stringify({ state, fields }));
+    localStorage.setItem(STORE, JSON.stringify({ state, fields, rows: readRows() }));
   } catch (e) { /* storage blocked: page still works, just without restore */ }
 }
 function load() {
@@ -207,6 +222,8 @@ function load() {
     const o = JSON.parse(raw);
     Object.assign(state, o.state);
     for (const [id, v] of Object.entries(o.fields || {})) if ($(id)) $(id).value = v;
+    for (const r of o.rows || []) addRow(r);
+    if (!$("predRows").children.length) addRow();
     if (state.locked) showLocked();
     renderLog();
   } catch (e) { /* ignore corrupt storage */ }
@@ -228,8 +245,35 @@ $("copyPrompt").onclick = async () => {
   catch (e) { $("promptOut").textContent = buildPrompt() + "\n\n(Clipboard blocked; copy manually.)"; }
 };
 
+function addRow(v = {}) {
+  const row = document.createElement("div");
+  row.className = "predrow";
+  const name = Object.assign(document.createElement("input"), { placeholder: "Model name, e.g. llama3.2:3b", value: v.model || "" });
+  name.setAttribute("aria-label", "Model name");
+  const pick = document.createElement("select");
+  pick.setAttribute("aria-label", "Which place the model says is quieter");
+  for (const [val, text] of [["A", "A is quieter"], ["B", "B is quieter"]]) pick.append(Object.assign(document.createElement("option"), { value: val, textContent: text }));
+  pick.value = v.quieter || "A";
+  const conf = Object.assign(document.createElement("input"), { type: "number", min: 50, max: 100, step: 1, value: v.conf == null ? 70 : v.conf });
+  conf.setAttribute("aria-label", "Confidence in percent");
+  const del = Object.assign(document.createElement("button"), { type: "button", textContent: "Remove" });
+  del.className = "quiet";
+  del.onclick = () => { row.remove(); save(); };
+  row.append(name, pick, conf, del);
+  row.addEventListener("input", save);
+  $("predRows").append(row);
+}
+function readRows() {
+  return [...$("predRows").children].map(r => {
+    const [n, s, c] = r.querySelectorAll("input,select");
+    return { model: n.value.trim(), quieter: s.value, conf: Number(c.value) };
+  });
+}
+$("addModel").onclick = () => { addRow(); save(); };
+
 function showLocked() {
-  $("preds").disabled = $("lockPred").disabled = true;
+  $("preds").disabled = $("lockPred").disabled = $("addModel").disabled = true;
+  $("predRows").querySelectorAll("input,select,button").forEach(e => { e.disabled = true; });
   $("predOut").textContent = `Locked at ${state.lockedAt}\n${state.predictions.length} predictions for ${state.locA} vs ${state.locB}.`;
 }
 
@@ -237,12 +281,20 @@ $("lockPred").onclick = () => {
   if (state.locked) { $("predOut").textContent = "Already locked. Use Start over to begin a new experiment."; return; }
   if (state.runs.length) { $("predOut").textContent = "Cannot lock after measuring."; return; }
   let preds;
-  try { preds = JSON.parse($("preds").value); } catch (e) { $("predOut").textContent = "Invalid JSON: " + e.message; return; }
-  if (!Array.isArray(preds) || preds.length === 0) { $("predOut").textContent = "Need a non-empty JSON array."; return; }
+  const rows = readRows().filter(r => r.model);
+  if (rows.length) {
+    preds = rows.map(r => ({ model: r.model, quieter: r.quieter, confidence: r.conf / 100 }));
+  } else if ($("preds").value.trim()) {
+    try { preds = JSON.parse($("preds").value); } catch (e) { $("predOut").textContent = "The pasted JSON is invalid: " + e.message; return; }
+    if (!Array.isArray(preds) || preds.length === 0) { $("predOut").textContent = "The pasted JSON must be a non-empty array."; return; }
+  } else {
+    $("predOut").textContent = "Add at least one model: type its name, pick the quieter place and set its confidence.";
+    return;
+  }
   for (const p of preds) {
     if (typeof p.quieter === "string") p.quieter = p.quieter.trim().toUpperCase();
     if (!["A", "B"].includes(p.quieter) || typeof p.confidence !== "number" || p.confidence < 0.5 || p.confidence > 1) {
-      $("predOut").textContent = "Bad entry (quieter must be A or B, confidence 0.5–1): " + JSON.stringify(p); return;
+      $("predOut").textContent = `Check "${p.model || "model"}": confidence must be between 50 and 100 percent and the pick must be A or B.`; return;
     }
   }
   state.locA = $("locA").value; state.locB = $("locB").value;
@@ -405,6 +457,7 @@ $("resetBtn").onclick = () => {
 };
 
 load();
+if (!$("predRows").children.length) addRow();
 </script>
 </body>
 </html>
