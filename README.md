@@ -15,6 +15,10 @@ Scoring needs at least 2 runs at each place (the repeatability check).
 2. **Measure.** Stand at location A for 30 s and repeat once, then do the same at B (if the places are far apart, do both runs at one place back to back and note the times). The tool logs an energy-averaged level in dBFS per run. Keep the same phone, same settings, and same posture. Record conditions.
 3. **Score.** The tool compares site medians, checks repeatability, and reports either an inconclusive verdict or each model's Brier score (lower is better). Export the run as JSON.
 
+## Recording mode (no microphone)
+
+Under step 3, "Analyze a recording instead" takes an audio file per place (at least 60 s). The first two 30 s segments become the two runs. You must enter where the recording is from (title, author, license, link). That source is saved with the results and printed in the score, which says "RECORDED AUDIO FILES, not live measurements". Levels from different recordings are only comparable if similar equipment and settings were used.
+
 ## Known limitations (state these in any write-up)
 
 - Levels are energy-averaged **relative dBFS from one uncalibrated phone mic**, not dB(A). Only compare within one session on one device.

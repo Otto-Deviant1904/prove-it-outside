@@ -180,6 +180,18 @@
     <output id="clock" aria-label="Seconds left"></output>
   </div>
   <p class="hint">Run each place at least twice. Same phone, same posture, screen on, stand still.</p>
+  <details id="fileMode">
+    <summary>No microphone? Analyze a recording instead</summary>
+    <p class="hint">Use a recording of each place, at least 60 seconds long. The first two 30 s segments become the two runs. The source is saved with the results and shown in the score. Levels are only comparable when both recordings were made with similar equipment and settings.</p>
+    <label for="audioFile">Audio file
+      <input id="audioFile" type="file" accept="audio/*">
+    </label>
+    <label for="audioSource">Where is this recording from? (title, author, license, link)
+      <input id="audioSource" placeholder="Title, author, CC0, https://...">
+    </label>
+    <button id="fA" class="pa" type="button">Analyze as A</button>
+    <button id="fB" class="pb" type="button">Analyze as B</button>
+  </details>
   <pre id="log">Waiting for a measurement.</pre>
   <div id="runs" class="runs"></div>
 </section>
@@ -200,7 +212,7 @@
 
 <script>
 const STORE = "pio-state-v1";
-const FIELDS = ["descA", "descB", "when", "locA", "locB", "preds", "cond"];
+const FIELDS = ["descA", "descB", "when", "locA", "locB", "preds", "cond", "audioSource"];
 const state = { locA: "", locB: "", predictions: [], runs: [], conditions: "", locked: false };
 const $ = id => document.getElementById(id);
 
@@ -382,6 +394,65 @@ async function measureRun(loc) {
   renderLog();
 }
 
+// Analyze two 30 s segments of an uploaded recording. The source label is required and travels with every run.
+async function analyzeFile(loc) {
+  if (busy) return;
+  if (!state.locked) { $("log").textContent = "Lock predictions first."; return; }
+  const file = $("audioFile").files[0];
+  const source = $("audioSource").value.trim();
+  if (!file) { $("log").textContent = "Choose an audio file first."; return; }
+  if (!source) { $("log").textContent = "Say where this recording is from (title, author, license, link). It is saved with the results."; return; }
+  busy = true;
+  $("fA").disabled = $("fB").disabled = $("mA").disabled = $("mB").disabled = true;
+  try {
+    $("log").textContent = `Decoding ${file.name}...`;
+    let audio;
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      audio = await ac.decodeAudioData(await file.arrayBuffer());
+      ac.close();
+    } catch (e) { $("log").textContent = "Could not decode this file. Try a WAV, MP3 or OGG recording."; return; }
+    const sr = audio.sampleRate, segLen = 30 * sr, chans = [];
+    for (let c = 0; c < audio.numberOfChannels; c++) chans.push(audio.getChannelData(c));
+    if (audio.length < 2 * segLen) {
+      $("log").textContent = `This recording is ${(audio.length / sr).toFixed(0)} s long. Need at least 60 s for two 30 s segments.`;
+      return;
+    }
+    const added = [];
+    for (let seg = 0; seg < 2; seg++) {
+      const perSecond = [];
+      let total = 0;
+      for (let s = 0; s < 30; s++) {
+        const from = seg * segLen + s * sr;
+        let sum = 0;
+        for (const ch of chans) for (let i = from; i < from + sr; i++) sum += ch[i] * ch[i];
+        const energy = sum / (sr * chans.length);
+        total += energy;
+        perSecond.push(10 * Math.log10(energy + 1e-24));
+      }
+      const levelDbfs = 10 * Math.log10(total / 30 + 1e-24);
+      if (levelDbfs < SILENCE_DBFS) { $("log").textContent = "This recording is silent in the first 60 seconds. Try another file."; return; }
+      added.push({
+        loc, source: "file", fileName: file.name, sourceNote: source, segment: seg + 1,
+        startedAt: new Date().toISOString(), endedAt: new Date().toISOString(),
+        conditions: `recording ${file.name}, segment ${seg + 1}`,
+        perSecondDbfs: perSecond.map(v => +v.toFixed(2)),
+        levelDbfs: +levelDbfs.toFixed(2),
+        medianDbfs: +median(perSecond).toFixed(2)
+      });
+    }
+    state.runs.push(...added);
+    state.score = null;
+    save();
+    renderLog();
+  } finally {
+    busy = false;
+    $("fA").disabled = $("fB").disabled = $("mA").disabled = $("mB").disabled = false;
+  }
+}
+$("fA").onclick = () => analyzeFile("A");
+$("fB").onclick = () => analyzeFile("B");
+
 function renderLog() {
   const box = $("runs");
   box.replaceChildren();
@@ -390,9 +461,11 @@ function renderLog() {
     const row = document.createElement("div");
     row.className = "run " + r.loc.toLowerCase();
     const head = document.createElement("b");
-    head.textContent = `#${i + 1} ${r.loc === "A" ? state.locA : state.locB} (${r.loc}): ${r.levelDbfs} dBFS`;
+    head.textContent = `#${i + 1} ${r.loc === "A" ? state.locA : state.locB} (${r.loc}): ${r.levelDbfs} dBFS` + (r.source === "file" ? " [recording]" : "");
     row.append(head, document.createElement("br"),
-      `${r.perSecondDbfs.length} s, started ${r.startedAt.slice(11, 19)}Z. Conditions: ${r.conditions || "-"}`);
+      r.source === "file"
+        ? `${r.perSecondDbfs.length} s from a recording. Source: ${r.sourceNote}`
+        : `${r.perSecondDbfs.length} s, started ${r.startedAt.slice(11, 19)}Z. Conditions: ${r.conditions || "-"}`);
     box.append(row);
   });
   $("log").textContent = `${state.runs.length} run${state.runs.length === 1 ? "" : "s"} recorded (energy-averaged level, relative dBFS).`;
@@ -417,10 +490,16 @@ $("scoreBtn").onclick = () => {
   const inconclusive = gap === 0 || Math.max(repA, repB) >= gap;
   const truth = mA < mB ? "A" : "B"; // lower dBFS = quieter
   const minutesApart = Math.round(Math.abs(mean(starts.A) - mean(starts.B)) / 60000);
+  const files = state.runs.filter(r => r.source === "file");
+  const evidence = files.length === 0
+    ? "Evidence: live phone microphone measurements."
+    : (files.length === state.runs.length ? "Evidence: RECORDED AUDIO FILES, not live measurements. " : "Evidence: mix of live measurements and recorded audio files. ")
+      + "Sources: " + [...new Set(files.map(r => `${r.loc}: ${r.sourceNote}`))].join(" | ");
   const lines = [
+    evidence,
     `Between-site gap: ${gap.toFixed(2)} dB (A level ${mA.toFixed(2)}, B level ${mB.toFixed(2)}).`,
     `Within-site spread: A ${repA.toFixed(2)} dB, B ${repB.toFixed(2)} dB.`,
-    `Average time between the A runs and the B runs: ${minutesApart} min.` + (minutesApart > 30 ? " Time of day may explain part of the gap." : ""),
+    ...(files.length === state.runs.length ? [] : [`Average time between the A runs and the B runs: ${minutesApart} min.` + (minutesApart > 30 ? " Time of day may explain part of the gap." : "")]),
     inconclusive
       ? "VERDICT: INCONCLUSIVE. Measurement could not separate the two sites. Do not score models on this run."
       : `Measured quieter location: ${truth === "A" ? state.locA : state.locB} (${truth}).`,
