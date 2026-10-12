@@ -17,7 +17,7 @@ Scoring needs at least 2 runs at each place (the repeatability check).
 
 ## Recording mode (no microphone)
 
-Under step 3, "Analyze a recording instead" takes an audio file per place (at least 60 s). The first two 30 s segments become the two runs. You must enter where the recording is from (title, author, license, link). That source is saved with the results and printed in the score, which says "RECORDED AUDIO FILES, not live measurements". Levels from different recordings are only comparable if similar equipment and settings were used.
+Under step 3, "Analyze a recording instead" takes an audio file per place (at least 30 s). Each full 30 s segment (up to two per file) becomes a run. You must enter where the recording is from (title, author, license, link). That source is saved with the results and printed in the score, which says "RECORDED AUDIO FILES, not live measurements". Levels from different recordings are only comparable if similar equipment and settings were used.
 
 ## Known limitations (state these in any write-up)
 

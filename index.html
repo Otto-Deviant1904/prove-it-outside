@@ -182,12 +182,12 @@
   <p class="hint">Run each place at least twice. Same phone, same posture, screen on, stand still.</p>
   <details id="fileMode">
     <summary>No microphone? Analyze a recording instead</summary>
-    <p class="hint">Use a recording of each place, at least 60 seconds long. The first two 30 s segments become the two runs. The source is saved with the results and shown in the score. Levels are only comparable when both recordings were made with similar equipment and settings.</p>
+    <p class="hint">Use a recording of each place, at least 30 seconds long. Each full 30 s segment (up to two per file) becomes a run, so add one file per run. The source is saved with the results and shown in the score. Levels are only comparable when both recordings were made with similar equipment and settings.</p>
     <label for="audioFile">Audio file
       <input id="audioFile" type="file" accept="audio/*">
     </label>
     <label for="audioSource">Where is this recording from? (title, author, license, link)
-      <input id="audioSource" placeholder="Title, author, CC0, https://...">
+      <input id="audioSource" placeholder="Recorded by me at Main Street, 12 Oct, phone voice recorder">
     </label>
     <button id="fA" class="pa" type="button">Analyze as A</button>
     <button id="fB" class="pb" type="button">Analyze as B</button>
@@ -414,12 +414,13 @@ async function analyzeFile(loc) {
     } catch (e) { $("log").textContent = "Could not decode this file. Try a WAV, MP3 or OGG recording."; return; }
     const sr = audio.sampleRate, segLen = 30 * sr, chans = [];
     for (let c = 0; c < audio.numberOfChannels; c++) chans.push(audio.getChannelData(c));
-    if (audio.length < 2 * segLen) {
-      $("log").textContent = `This recording is ${(audio.length / sr).toFixed(0)} s long. Need at least 60 s for two 30 s segments.`;
+    const segments = Math.min(2, Math.floor(audio.length / segLen));
+    if (segments < 1) {
+      $("log").textContent = `This recording is ${(audio.length / sr).toFixed(0)} s long. Need at least 30 s.`;
       return;
     }
     const added = [];
-    for (let seg = 0; seg < 2; seg++) {
+    for (let seg = 0; seg < segments; seg++) {
       const perSecond = [];
       let total = 0;
       for (let s = 0; s < 30; s++) {
