@@ -1,0 +1,78 @@
+[
+  {
+    "model": "qwen3:4b",
+    "quieter": "A",
+    "confidence": 0.77,
+    "agreement": 1.0,
+    "valid_samples": 7,
+    "reason": "Main Street in front of a college on Sunday typically has fewer people and less activity than the metro station area which is a source of constant noise from trains and crowds.",
+    "raw": [
+      [
+        "A",
+        0.8
+      ],
+      [
+        "A",
+        0.8
+      ],
+      [
+        "A",
+        0.75
+      ],
+      [
+        "A",
+        0.75
+      ],
+      [
+        "A",
+        0.7
+      ],
+      [
+        "A",
+        0.75
+      ],
+      [
+        "A",
+        0.85
+      ]
+    ]
+  },
+  {
+    "model": "llama3.2:3b",
+    "quieter": "A",
+    "confidence": 0.79,
+    "agreement": 1.0,
+    "valid_samples": 7,
+    "reason": "Main Street in front of a college is generally quieter than a convenience shop near a metro station on a Sunday afternoon.",
+    "raw": [
+      [
+        "A",
+        0.8
+      ],
+      [
+        "A",
+        0.7
+      ],
+      [
+        "A",
+        0.8
+      ],
+      [
+        "A",
+        0.8
+      ],
+      [
+        "A",
+        0.8
+      ],
+      [
+        "A",
+        0.8
+      ],
+      [
+        "A",
+        0.8
+      ]
+    ]
+  }
+]
