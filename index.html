@@ -182,12 +182,15 @@
   <p class="hint">Run each place at least twice. Same phone, same posture, screen on, stand still.</p>
   <details id="fileMode">
     <summary>No microphone? Analyze a recording instead</summary>
-    <p class="hint">Use a recording of each place, at least 30 seconds long. Each full 30 s segment (up to two per file) becomes a run, so add one file per run. The source is saved with the results and shown in the score. Levels are only comparable when both recordings were made with similar equipment and settings.</p>
+    <p class="hint">Use a recording of each place, at least 30 seconds long. Each full segment (up to two per file) becomes a run. Shorter segments are less reliable; say so in your write-up. The source is saved with the results and shown in the score. Levels are only comparable when both recordings were made with similar equipment and settings.</p>
     <label for="audioFile">Audio file
       <input id="audioFile" type="file" accept="audio/*">
     </label>
     <label for="audioSource">Where is this recording from? (title, author, license, link)
       <input id="audioSource" placeholder="Recorded by me at Main Street, 12 Oct, phone voice recorder">
+    </label>
+    <label for="segSec">Segment length
+      <select id="segSec"><option value="30">30 s (default)</option><option value="15">15 s (short recordings)</option></select>
     </label>
     <button id="fA" class="pa" type="button">Analyze as A</button>
     <button id="fB" class="pb" type="button">Analyze as B</button>
@@ -412,18 +415,19 @@ async function analyzeFile(loc) {
       audio = await ac.decodeAudioData(await file.arrayBuffer());
       ac.close();
     } catch (e) { $("log").textContent = "Could not decode this file. Try a WAV, MP3 or OGG recording."; return; }
-    const sr = audio.sampleRate, segLen = 30 * sr, chans = [];
+    const segSec = Number($("segSec").value) || 30;
+    const sr = audio.sampleRate, segLen = segSec * sr, chans = [];
     for (let c = 0; c < audio.numberOfChannels; c++) chans.push(audio.getChannelData(c));
     const segments = Math.min(2, Math.floor(audio.length / segLen));
     if (segments < 1) {
-      $("log").textContent = `This recording is ${(audio.length / sr).toFixed(0)} s long. Need at least 30 s.`;
+      $("log").textContent = `This recording is ${(audio.length / sr).toFixed(0)} s long. Need at least ${segSec} s.`;
       return;
     }
     const added = [];
     for (let seg = 0; seg < segments; seg++) {
       const perSecond = [];
       let total = 0;
-      for (let s = 0; s < 30; s++) {
+      for (let s = 0; s < segSec; s++) {
         const from = seg * segLen + s * sr;
         let sum = 0;
         for (const ch of chans) for (let i = from; i < from + sr; i++) sum += ch[i] * ch[i];
@@ -431,12 +435,12 @@ async function analyzeFile(loc) {
         total += energy;
         perSecond.push(10 * Math.log10(energy + 1e-24));
       }
-      const levelDbfs = 10 * Math.log10(total / 30 + 1e-24);
-      if (levelDbfs < SILENCE_DBFS) { $("log").textContent = "This recording is silent in the first 60 seconds. Try another file."; return; }
+      const levelDbfs = 10 * Math.log10(total / segSec + 1e-24);
+      if (levelDbfs < SILENCE_DBFS) { $("log").textContent = "This recording is silent. Try another file."; return; }
       added.push({
         loc, source: "file", fileName: file.name, sourceNote: source, segment: seg + 1,
         startedAt: new Date().toISOString(), endedAt: new Date().toISOString(),
-        conditions: `recording ${file.name}, segment ${seg + 1}`,
+        conditions: `recording ${file.name}, segment ${seg + 1} (${segSec} s)`,
         perSecondDbfs: perSecond.map(v => +v.toFixed(2)),
         levelDbfs: +levelDbfs.toFixed(2),
         medianDbfs: +median(perSecond).toFixed(2)
